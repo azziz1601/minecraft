@@ -438,6 +438,7 @@ serverActionMenu() {
             7) mc "$server_path" ;;
             8) ramAllocationMenu "$server_name" ;;
             9) autoRestartMenu "$server_name" ;;
+            10) pluginWebMenu "$server_name" ;;
             0) return ;;
             *) echo -e "${RED}Pilihan tidak valid.${NC}"; sleep 1 ;;
         esac
