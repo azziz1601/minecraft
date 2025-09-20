@@ -188,4 +188,3 @@ install_gotop_optional || true
 enable_services
 prepare_panel_dir
 print_summary
-```0
