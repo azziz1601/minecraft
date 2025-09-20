@@ -364,6 +364,7 @@ serverActionMenu() {
         echo " 7. Manajer File (mc)"
         echo " 8. Pengaturan Alokasi RAM"
         echo " 9. Jadwal Restart Otomatis"
+        echo "10. Website Upload Plugin"
 
         echo -e "\n${YELLOW} 0. Kembali ke Menu Utama${NC}"
         read -rp "Masukkan pilihan: " choice
