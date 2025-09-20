@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Pastikan kita berada di direktori yang benar
 cd /root/mc-panel
 
 LOG_DIR="logs"; LOG_FILE="$LOG_DIR/bot.log"; mkdir -p "$LOG_DIR"
