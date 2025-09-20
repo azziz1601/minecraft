@@ -217,13 +217,13 @@ chmod 0644 '$PANEL_PROFILE_SNIPPET'
 post_info() {
   echo
   printf "\033[1;34m═══════════════════════════════════════════════════════\033[0m\n"
-  printf "\033[1;34m SETUP SELESAI \033[0m\n"
+  printf "\033[1;34m                   SETUP SELESAI \033[0m\n"
   printf "\033[1;34m═══════════════════════════════════════════════════════\033[0m\n"
   echo "• Panel   : $PANEL_DIR"
   echo "• Log     : $LOG_FILE"
   echo "• Java    : $(java -version 2>&1 | sed -n '1p')"
   echo "• Alias   : ketik \`menu\` untuk membuka panel"
-  echo "• AutoRun : panel akan otomatis terbuka saat login (root, shell interaktif)."
+  echo "• AutoRun : panel akan otomatis terbuka saat login."
   echo
   echo -e "Jalankan panel sekarang:"
   echo -e "  \033[1;33mcd $PANEL_DIR && ./main.sh\033[0m"
@@ -245,5 +245,6 @@ clone_repo
 deploy_repo
 install_alias_and_autostart
 post_info
+
 
 
