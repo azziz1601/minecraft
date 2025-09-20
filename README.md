@@ -1,12 +1,17 @@
-# 🛠️ Minecraft Panel (Bash)
+# 🛠️Minecraft Panel
 
-Panel sederhana berbasis **Bash** untuk mengelola server Minecraft di VPS/Linux.  
-Mendukung **Debian 11/12** dan **Ubuntu 22.04/24.04** dengan integrasi **Java 21, tmux, vnstat, gotop**, dan otomatisasi penuh.
+Panel sederhana berbasis **Bash** untuk mengelola server Minecraft di VPS/Linux. dengan integrasi **Java 21, tmux, vnstat, gotop**, dan otomatisasi penuh.
+
+# Support Untuk OS
+- Debian 11 ✅
+- Debian 12 ✅
+- Ubuntu 22 ✅
+- Ubuntu 24 ✅
 
 ---
 
 ## 🚀 Fitur Utama
-- **Menu Interaktif (main.sh)**  
+- **Menu Interaktif**  
   Navigasi mudah untuk semua fungsi.
 
 - **Manajemen Server Minecraft**  
@@ -44,14 +49,13 @@ Mendukung **Debian 11/12** dan **Ubuntu 22.04/24.04** dengan integrasi **Java 21
 ## ⚡ Instalasi Otomatis
 Jalankan perintah berikut di VPS Anda:
 
-```bash
-sudo apt update && sudo apt install -y curl wget git
+<pre><code></code>sudo apt update && sudo apt install -y curl wget git
 git clone https://github.com/azziz1601/minecraft.git mc-panel
 cd mc-panel
 chmod +x setup.sh
-./setup.sh
+./setup.sh</pre></code>
 
-📌 Script setup.sh akan:
+# 📌 Script akan otomatis:
 
 Menginstal semua dependensi.
 
@@ -67,7 +71,7 @@ Menjalankan panel saat login pertama ke VPS.
 
 ---
 
-🖥️ Cara Penggunaan
+# 🖥️ Cara Penggunaan
 
 Setelah instalasi, cukup jalankan:
 
@@ -90,7 +94,7 @@ Menu utama:
 
 ---
 
-📑 Catatan
+# 📑 Catatan
 
 File server otomatis dibuat dengan Java 21 + Aikar’s Flags.
 
@@ -104,13 +108,6 @@ Pastikan port yang dipilih tidak konflik dengan layanan lain.
 
 ---
 
-🤝 Kontribusi
+# 🤝 Kontribusi
 
 Pull Request dan saran sangat diterima!
-
-
----
-
-📜 Lisensi
-
-Proyek ini dilisensikan di bawah MIT License.
