@@ -114,8 +114,3 @@ Pull Request dan saran sangat diterima!
 📜 Lisensi
 
 Proyek ini dilisensikan di bawah MIT License.
-
----
-
-Mau aku tambahkan juga **contoh screenshot tampilan panel** ke README ini biar lebih menarik?
-
