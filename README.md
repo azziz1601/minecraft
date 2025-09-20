@@ -7,6 +7,7 @@ Panel sederhana berbasis **Bash** untuk mengelola server Minecraft di VPS/Linux.
 - Debian 12 ✅
 - Ubuntu 22 ✅
 - Ubuntu 24 ✅
+---
 Kami Merekomendasikan Debian 12 Jika Memerlukan Stabilitas Dan Uptime Panjang
 ---
 
