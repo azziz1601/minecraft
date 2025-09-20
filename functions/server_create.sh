@@ -274,4 +274,5 @@ SH
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   createServer
 fi
-
+# Setujui EULA otomatis
+  echo "eula=true" > "$server_path/eula.txt"
