@@ -1,31 +1,50 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# server_create.sh — Buat server Minecraft dari Egg Pterodactyl (Paper/Bedrock)
+# Fitur:
+# - Pilih egg (.json), nama server, RAM, domain
+# - Pilih port dengan pengecekan bentrok (TCP untuk Java/Paper, UDP untuk PocketMine)
+# - Baca variables dari egg (rules bisa string/array) → diexport ke installer
+# - Jalankan skrip instalasi egg (ganti /mnt/server ke direktori server)
+# - Tulis panel.conf, pastikan ada server.jar (symlink jika nama lain)
+# - Tulis server.properties: server-port=PORT
+# - Buat start.sh (Java 21 flags); Xms/Xmx mengikuti input RAM
 
-# ===== Helper: Cek & pilih port =====
+set -euo pipefail
 
-# Cek port TCP terpakai (return 0 = terpakai, 1 = bebas)
+# ===================== KONFIGURASI DASAR =====================
+BASE_DIR="${BASE_DIR:-/root/mc-panel}"
+SERVERS_DIR="${SERVERS_DIR:-$BASE_DIR/servers}"
+EGGS_DIR="${EGGS_DIR:-$BASE_DIR/eggs}"
+
+# Warna
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+
+# ===================== UTIL & VALIDASI =======================
+need_cmd(){ command -v "$1" >/dev/null 2>&1; }
+pause(){ read -rp $'\nTekan [Enter] untuk kembali...'; }
+
+# Cek port TCP terpakai
 port_in_use_tcp() {
   local p="$1"
   ss -ltn 2>/dev/null | awk '{print $4}' | grep -q ":${p}$"
 }
 
-# Cek port UDP terpakai (return 0 = terpakai, 1 = bebas)
+# Cek port UDP terpakai
 port_in_use_udp() {
   local p="$1"
   ss -lun 2>/dev/null | awk '{print $5}' | grep -q ":${p}$"
 }
 
-# Minta port dari user + validasi ketersediaan; jika terpakai → minta ulang
-# arg1: prompt text, arg2: default, arg3: mode ("tcp" | "udp" | "both")
+# Minta port + validasi ketersediaan
+# arg1 prompt, arg2 default, arg3 mode tcp|udp|both
 prompt_port_loop() {
   local prompt="$1" def="$2" mode="${3:-tcp}" port
   while true; do
-    read -p "${prompt} [Default: ${def}]: " port
+    read -rp "${prompt} [Default: ${def}]: " port
     port="${port:-$def}"
-    # valid angka 1..65535
     if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
-      echo -e "Port tidak valid. Masukkan angka 1-65535."; continue
+      echo -e "${RED}Port tidak valid. Masukkan angka 1..65535.${NC}"; continue
     fi
-    # cek kepakai
     local used=0
     case "$mode" in
       tcp)  port_in_use_tcp "$port" && used=1 ;;
@@ -34,7 +53,7 @@ prompt_port_loop() {
       *)    port_in_use_tcp "$port" && used=1 ;;
     esac
     if (( used == 1 )); then
-      echo -e "Port ${port} sedang digunakan. Silakan masukkan port lain."
+      echo -e "${YELLOW}Port ${port} sedang digunakan. Coba port lain.${NC}"
       continue
     fi
     echo "$port"
@@ -42,7 +61,7 @@ prompt_port_loop() {
   done
 }
 
-# Tulis/replace server-port di server.properties (buat file jika belum ada)
+# Tulis/replace server-port di server.properties
 write_java_port() {
   local prop_file="$1" port="$2"
   if [ ! -f "$prop_file" ]; then
@@ -53,250 +72,206 @@ write_java_port() {
   echo "server-port=${port}" >> "$prop_file"
 }
 
-# ===== Buat systemd service =====
-create_systemd_service() {
-  local server_name="$1"
-  local server_path="$2"
-  local unit="/etc/systemd/system/mc-${server_name}.service"
+# ===================== FUNGSI UTAMA ==========================
+createServer() {
+  clear
+  echo -e "${BLUE}--- Membuat Server Baru dari Egg ---${NC}"
 
-  sudo tee "$unit" > /dev/null <<UNIT
-[Unit]
-Description=Minecraft Server $server_name
-Wants=network-online.target
-After=network-online.target
+  # Pastikan jq tersedia
+  if ! need_cmd jq; then
+    echo -e "${RED}jq tidak ditemukan. Silakan install: apt-get install -y jq${NC}"
+    pause; return
+  fi
 
-[Service]
-Type=simple
-WorkingDirectory=$server_path
-ExecStart=$server_path/start.sh
-User=root
-Restart=always
-RestartSec=10
-LimitNOFILE=65535
+  # Kumpulkan daftar egg
+  mapfile -t eggs < <(find "$EGGS_DIR" -type f -name "*.json" | sort)
+  if [ ${#eggs[@]} -eq 0 ]; then
+    echo -e "${RED}Tidak ada file egg (.json) ditemukan di ${EGGS_DIR}.${NC}"
+    pause; return
+  fi
 
-[Install]
-WantedBy=multi-user.target
-UNIT
+  echo "Pilih Egg untuk server baru:"
+  local i=1
+  for egg in "${eggs[@]}"; do
+    echo "$i. $(basename "$egg")"
+    i=$((i+1))
+  done
 
-  sudo systemctl daemon-reload
-  sudo systemctl enable "mc-${server_name}.service"
-  sudo systemctl restart "mc-${server_name}.service"
+  read -rp "Masukkan nomor egg [1-${#eggs[@]}]: " egg_choice
+  local selected_egg_file="${eggs[$egg_choice-1]:-}"
+  if [ -z "$selected_egg_file" ]; then
+    echo -e "${RED}Pilihan tidak valid.${NC}"
+    sleep 1; return
+  fi
+  local egg_name; egg_name="$(basename "$selected_egg_file")"
+  echo -e "Egg yang dipilih: ${GREEN}$egg_name${NC}"
 
-  echo -e "${GREEN:-}Systemd service mc-${server_name}.service berhasil dibuat & dijalankan.${NC:-}"
-  echo "Gunakan: systemctl status mc-${server_name}.service"
-}
+  # Input nama server
+  read -rp "Masukkan nama unik untuk server (tanpa spasi): " server_name
+  if [[ -z "$server_name" || -d "$SERVERS_DIR/$server_name" ]]; then
+    echo -e "${RED}Nama server kosong atau sudah ada.${NC}"
+    sleep 1; return
+  fi
 
-# ===== Fungsi utama pembuatan server =====
-function createServer() {
-    clear
-    echo -e "${BLUE:-}--- Membuat Server Baru dari Egg ---${NC:-}"
-    mapfile -t eggs < <(find "$EGGS_DIR" -type f -name "*.json")
-    if [ ${#eggs[@]} -eq 0 ]; then echo -e "${RED:-}Tidak ada file egg (.json) ditemukan.${NC:-}"; read -p "Tekan [Enter]..."; return; fi
-    
-    echo "Pilih Egg untuk server baru:"
-    i=1; for egg in "${eggs[@]}"; do echo "$i. $(basename "$egg")"; i=$((i+1)); done
-    read -p "Masukkan nomor egg [1-${#eggs[@]}]: " egg_choice
-    selected_egg_file="${eggs[$egg_choice-1]}"
-    if [ -z "$selected_egg_file" ]; then echo -e "${RED:-}Pilihan tidak valid.${NC:-}"; sleep 2; return; fi
-    local egg_name=$(basename "$selected_egg_file")
-    echo -e "Egg yang dipilih: ${GREEN:-}$egg_name${NC:-}\n"
+  # Input RAM (misal: 1024M / 4G). Kita pakai nilai ini untuk Xms/Xmx.
+  read -rp "Masukkan alokasi memori (cth: 1024M atau 2G): " server_memory
+  if ! [[ "$server_memory" =~ ^[0-9]+[MmGg]$ ]]; then
+    echo -e "${RED}Format memori salah. Contoh valid: 1024M atau 2G.${NC}"
+    sleep 1; return
+  fi
 
-    read -p "Masukkan nama unik untuk server (tanpa spasi): " server_name
-    if [ -z "$server_name" ] || [ -d "$SERVERS_DIR/$server_name" ]; then echo -e "${RED:-}Nama server tidak valid atau sudah ada.${NC:-}"; sleep 2; return; fi
+  # Domain opsional
+  read -rp "Masukkan domain (kosongkan jika tidak ada): " server_domain
 
-    read -p "Masukkan alokasi memori (cth: 1024M): " server_memory
-    if ! [[ "$server_memory" =~ ^[0-9]+M$ ]]; then echo -e "${RED:-}Format memori salah.${NC:-}"; sleep 2; return; fi
-
-    read -p "Masukkan domain (kosongkan jika tidak ada): " server_domain
-
-    # === Tentukan port sebelum instalasi (supaya bisa dipakai env jika egg butuh) ===
-    local base_port
-    if [[ "$egg_name" == *"pocketmine"* ]]; then
-      base_port=19132  # UDP (Bedrock)
-      echo -e "${YELLOW:-}Egg terdeteksi Bedrock/PocketMine — port default ${base_port}/udp${NC:-}"
-      SERVER_PORT=$(prompt_port_loop "Masukkan port UDP untuk server" "$base_port" "udp")
-    else
-      base_port=25565  # TCP (Java/Paper/Spigot)
-      echo -e "${YELLOW:-}Egg terdeteksi Java/Paper — port default ${base_port}/tcp${NC:-}"
-      SERVER_PORT=$(prompt_port_loop "Masukkan port TCP untuk server" "$base_port" "tcp")
-    fi
-    echo -e "Port yang dipakai: ${GREEN:-}${SERVER_PORT}${NC:-}\n"
-
-    local env_variables_exports=()
-    local variable_count
-    variable_count=$(jq '.variables | length' "$selected_egg_file")
-
-    if [[ $variable_count -gt 0 ]]; then
-        echo -e "\n${BLUE:-}--- Konfigurasi Variabel Egg ---${NC:-}"
-        for (( i=0; i<variable_count; i++ )); do
-            local var_name var_desc var_env var_default var_rules user_value
-            var_name=$(jq -r ".variables[$i].name" "$selected_egg_file")
-            var_desc=$(jq -r ".variables[$i].description" "$selected_egg_file")
-            var_env=$(jq -r ".variables[$i].env_variable" "$selected_egg_file")
-            var_default=$(jq -r ".variables[$i].default_value" "$selected_egg_file")
-            var_rules=$(jq -r ".variables[$i].rules | join(\", \")" "$selected_egg_file")
-
-            echo "Konfigurasi untuk: ${YELLOW:-}$var_name${NC:-}"
-            echo "Deskripsi: $var_desc"
-            echo "Aturan: $var_rules"
-            read -p "Masukkan nilai [Default: $var_default]: " user_value
-            [ -z "$user_value" ] && user_value=$var_default
-            
-            env_variables_exports+=("export $var_env=\"$user_value\"")
-            echo ""
-        done
-    fi
-
-    local server_path="$SERVERS_DIR/$server_name"
-    mkdir -p "$server_path"
-    cd "$server_path" || { echo "Gagal masuk ke direktori server."; return; }
-    
-    echo -e "\n${YELLOW:-}Memulai instalasi untuk server '$server_name'...${NC:-}"
-    
-    local install_script_raw install_script_clean
-    install_script_raw=$(jq -r '.scripts.installation.script' "$selected_egg_file")
-    install_script_clean=$(echo "$install_script_raw" | sed 's/\r$//' | sed 's/\\"/"/g')
-
-    local temp_install_script="/tmp/install_${server_name}.sh"
-    
-    {
-      echo "#!/bin/bash"
-      echo "export SERVER_MEMORY=${server_memory::-1}"
-      echo "export SERVER_PORT=${SERVER_PORT}"
-      for export_cmd in "${env_variables_exports[@]}"; do
-        echo "$export_cmd"
-      done
-      echo
-      # Ganti /mnt/server dengan path saat ini
-      install_script_clean=$(echo "$install_script_clean" | sed "s|/mnt/server|$(pwd)|g")
-      echo "$install_script_clean"
-    } > "$temp_install_script"
-
-    chmod +x "$temp_install_script"
-    
-    echo "Menjalankan skrip instalasi dari egg. Ini mungkin memakan waktu lama..."
-    bash "$temp_install_script"
-    rm -f "$temp_install_script"
-
-    # Buat panel.conf ringkas
-    {
-      echo "EGG=$egg_name"
-      echo "MEMORY=$server_memory"
-      echo "DOMAIN=$server_domain"
-      echo "PORT=$SERVER_PORT"
-      if [[ "$egg_name" == *"pocketmine"* ]]; then
-        echo "VERSION=Bedrock"
-      else
-        echo "VERSION=Java"
-      fi
-    } > "panel.conf"
-
-    # Pastikan ada server.jar (kalau egg meletakkan nama JAR lain, buat symlink)
-    if [ ! -f server.jar ]; then
-        jar_guess=$(ls -1 *.jar 2>/dev/null | head -n1 || true)
-        if [ -n "$jar_guess" ]; then
-            ln -sf "$jar_guess" server.jar
-        fi
-    fi
-
-    # === Tulis port ke server.properties ===
-    write_java_port "server.properties" "$SERVER_PORT"
-
-    # ===== start.sh: Java 21 + Aikar Flags + AUTO SYSTEMD =====
-    cat > "start.sh" <<'SH'
-#!/usr/bin/env bash
-# start.sh — Java 21 + Aikar Flags + AUTO systemd handoff
-set -euo pipefail
-cd "$(dirname "$0")"
-
-# --- Konfigurasi dasar ---
-JAVA_BIN="/usr/lib/jvm/java-21-openjdk-amd64/bin/java"   # ubah jika path Java 21 beda
-JAR="server.jar"                                         # pastikan ada; gunakan symlink jika perlu
-
-# --- Pastikan JAR ada ---
-if [[ ! -f "$JAR" ]]; then
-  guess=$(ls -1 *.jar 2>/dev/null | head -n1 || true)
-  [[ -n "${guess:-}" ]] && ln -sf "$guess" "$JAR"
-fi
-[[ -f "$JAR" ]] || { echo "ERROR: $JAR tidak ditemukan."; exit 1; }
-
-# --- Pastikan Java 21 ---
-if [[ ! -x "$JAVA_BIN" ]]; then
-  if command -v java >/dev/null 2>&1 && java -version 2>&1 | grep -qE 'version "21\.'; then
-    JAVA_BIN="$(command -v java)"
+  # Tentukan port berdasarkan jenis egg
+  local SERVER_PORT base_port
+  if [[ "$egg_name" == *"pocketmine"* ]]; then
+    base_port=19132
+    echo -e "${YELLOW}Egg terdeteksi Bedrock/PocketMine — port default ${base_port}/udp${NC}"
+    SERVER_PORT="$(prompt_port_loop "Masukkan port UDP untuk server" "$base_port" "udp")"
   else
-    echo "ERROR: Java 21 tidak ditemukan pada $JAVA_BIN maupun PATH." >&2
-    exit 1
+    base_port=25565
+    echo -e "${YELLOW}Egg terdeteksi Java/Paper — port default ${base_port}/tcp${NC}"
+    SERVER_PORT="$(prompt_port_loop "Masukkan port TCP untuk server" "$base_port" "tcp")"
   fi
-fi
+  echo -e "Port yang dipakai: ${GREEN}${SERVER_PORT}${NC}"
 
-# --- Auto systemd (kecuali dipaksa direct run) ---
-SERVICE_NAME="mc-$(basename "$PWD")"
-UNIT="/etc/systemd/system/${SERVICE_NAME}.service"
+  # Siapkan array export variabel environment dari egg
+  local -a env_variables_exports=()
+  local variable_count
+  variable_count=$(jq '.variables | length' "$selected_egg_file")
 
-if [[ "${MC_DIRECT:-0}" != "1" ]]; then
-  need_sudo=
-  if [[ ! -f "$UNIT" ]]; then
-    need_sudo=1
+  if [[ $variable_count -gt 0 ]]; then
+    echo -e "\n${BLUE}--- Konfigurasi Variabel Egg ---${NC}"
+    local idx
+    for (( idx=0; idx<variable_count; idx++ )); do
+      local var_name var_desc var_env var_default var_rules
+
+      var_name=$(jq -r ".variables[$idx].name // \"(tanpa nama)\"" "$selected_egg_file")
+      var_desc=$(jq -r ".variables[$idx].description // \"\"" "$selected_egg_file")
+      var_env=$(jq -r ".variables[$idx].env_variable // \"\"" "$selected_egg_file")
+      var_default=$(jq -r ".variables[$idx].default_value // \"\"" "$selected_egg_file")
+      # rules bisa array/string → normalisasi string aman
+      var_rules=$(jq -r ".variables[$idx].rules
+        | if type==\"array\" then join(\", \")
+          elif type==\"string\" then .
+          else \"-\"
+          end" "$selected_egg_file")
+
+      echo "Konfigurasi untuk: ${YELLOW}$var_name${NC}"
+      [[ -n "$var_desc" ]] && echo "Deskripsi: $var_desc"
+      echo "Aturan: $var_rules"
+      read -rp "Masukkan nilai [Default: $var_default]: " user_value
+      [ -z "$user_value" ] && user_value=$var_default
+
+      if [[ -n "$var_env" ]]; then
+        env_variables_exports+=("export $var_env=\"$user_value\"")
+      fi
+      echo ""
+    done
   fi
 
-  if command -v systemctl >/dev/null 2>&1; then
-    if [[ "${need_sudo:-}" == "1" ]]; then
-      # Buat unit
-      sudo tee "$UNIT" > /dev/null <<UNIT
-[Unit]
-Description=Minecraft Server ${SERVICE_NAME}
-Wants=network-online.target
-After=network-online.target
+  # Buat direktori server
+  local server_path="$SERVERS_DIR/$server_name"
+  mkdir -p "$server_path/logs"
+  cd "$server_path" || { echo "Gagal masuk ke direktori server."; return; }
 
-[Service]
-Type=simple
-WorkingDirectory=${PWD}
-ExecStart=${PWD}/start.sh MC_DIRECT=1
-User=root
-Restart=always
-RestartSec=10
-LimitNOFILE=65535
+  echo -e "\n${YELLOW}Memulai instalasi untuk server '${server_name}'...${NC}"
 
-[Install]
-WantedBy=multi-user.target
-UNIT
-      sudo systemctl daemon-reload
-      sudo systemctl enable "${SERVICE_NAME}.service"
+  # Ambil skrip instalasi dari egg
+  local install_script_raw install_script_clean
+  install_script_raw=$(jq -r '.scripts.installation.script // ""' "$selected_egg_file")
+  if [[ -z "$install_script_raw" || "$install_script_raw" == "null" ]]; then
+    echo -e "${RED}Egg tidak memiliki installation.script yang valid.${NC}"
+    pause; return
+  fi
+  # Bersihkan karakter CR & escape
+  install_script_clean=$(echo "$install_script_raw" | sed 's/\r$//' | sed 's/\\"/"/g')
+
+  local temp_install_script="/tmp/install_${server_name}.sh"
+  {
+    echo "#!/usr/bin/env bash"
+    # Beberapa egg memakai SERVER_MEMORY dalam MB (tanpa huruf). Kita konversi jika user input M/G.
+    # Ambil angka saja agar aman untuk kasus 2G → 2048 (approx 2*1024).
+    # Namun default banyak egg hanya butuh SERVER_PORT & normal /mnt/server path.
+    # Export memori kasar (angka M):
+    case "$server_memory" in
+      *[Gg]) echo "export SERVER_MEMORY=$(( ${server_memory%[Gg]} * 1024 ))" ;;
+      *[Mm]) echo "export SERVER_MEMORY=${server_memory%[Mm]}" ;;
+      *)     echo "export SERVER_MEMORY=1024" ;;
+    esac
+    echo "export SERVER_PORT=${SERVER_PORT}"
+    # Export env variables dari egg
+    for export_cmd in "${env_variables_exports[@]}"; do
+      echo "$export_cmd"
+    done
+    echo
+    # Ganti /mnt/server → direktori saat ini
+    echo "$install_script_clean" | sed "s|/mnt/server|$(pwd)|g"
+  } > "$temp_install_script"
+
+  chmod +x "$temp_install_script"
+  echo "Menjalankan skrip instalasi dari egg. Mohon tunggu..."
+  bash "$temp_install_script"
+  rm -f "$temp_install_script"
+
+  # Tulis panel.conf ringkas
+  {
+    echo "EGG=$egg_name"
+    echo "MEMORY=$server_memory"
+    echo "DOMAIN=$server_domain"
+    echo "PORT=$SERVER_PORT"
+    if [[ "$egg_name" == *"pocketmine"* ]]; then
+      echo "VERSION=Bedrock"
+    else
+      echo "VERSION=Java"
     fi
-    # Start/Restart via systemd, lalu keluar
-    sudo systemctl restart "${SERVICE_NAME}.service"
-    echo "✅ Diserahkan ke systemd: ${SERVICE_NAME}.service"
-    echo "Log: journalctl -u ${SERVICE_NAME}.service -f"
-    exit 0
+  } > "panel.conf"
+
+  # Pastikan ada server.jar (kalau egg beri nama lain → symlink)
+  if [ ! -f server.jar ]; then
+    local jar_guess
+    jar_guess="$(ls -1 *.jar 2>/dev/null | head -n1 || true)"
+    if [ -n "$jar_guess" ]; then
+      ln -sf "$jar_guess" server.jar
+    fi
   fi
-fi
 
-# --- Jalankan langsung (fallback atau MC_DIRECT=1) ---
-exec "$JAVA_BIN" \
-  -Xms8G -Xmx8G \
-  -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 \
-  -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch \
-  -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M \
-  -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 \
-  -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 \
-  -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:MaxTenuringThreshold=1 \
-  -XX:+UseStringDeduplication \
-  -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true \
-  -jar "$JAR" --nogui
+  # Tulis server.properties: server-port
+  write_java_port "server.properties" "$SERVER_PORT"
+
+  # Buat start.sh dengan Java 21 flags; Xms/Xmx mengikuti input user
+  # Gunakan `java` di PATH (setup sudah mengarahkan ke Oracle JDK 21)
+  cat > "start.sh" <<SH
+#!/usr/bin/env bash
+cd "\$(dirname "\$0")"
+JAVA_BIN="\${JAVA_BIN:-java}"
+XMS="$server_memory"
+XMX="$server_memory"
+
+echo "==> Menjalankan server: server.jar (Java: \$JAVA_BIN, Xms=\$XMS, Xmx=\$XMX)"
+exec "\$JAVA_BIN" -Xms"\$XMS" -Xmx"\$XMX" -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 \
+-XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch \
+-XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M \
+-XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 \
+-XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 \
+-XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:MaxTenuringThreshold=1 \
+-XX:+UseStringDeduplication \
+-Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true \
+-jar server.jar --nogui
 SH
-    chmod +x "start.sh"
+  chmod +x "start.sh"
 
-    # Buat systemd service otomatis (langsung jalan)
-    create_systemd_service "$server_name" "$server_path"
-    
-    # Kembali ke direktori utama panel
-    cd "$BASE_DIR"
+  # Kembali ke BASE_DIR
+  cd "$BASE_DIR"
 
-    echo -e "\n${GREEN:-}✅ Instalasi server '$server_name' berdasarkan egg '$egg_name' selesai!${NC:-}"
-    echo -e "${YELLOW:-}Catatan:${NC:-} Port: ${SERVER_PORT}. start.sh auto-systemd; direct run: MC_DIRECT=1 ./start.sh"
-    read -p "Tekan [Enter] untuk kembali."
+  echo -e "\n${GREEN}✅ Instalasi server '$server_name' berdasarkan egg '$egg_name' selesai!${NC}"
+  echo -e "${YELLOW}Catatan:${NC} Port: ${SERVER_PORT}. start.sh memakai Java 21 flags. Xms/Xmx = ${server_memory}."
+  pause
 }
 
-# (opsional) panggil createServer jika file ini dijalankan langsung
-# createServer
+# Jika file dipanggil langsung
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  createServer
+fi
+
