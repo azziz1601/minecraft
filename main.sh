@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ==============================================================================
-#   PANEL SERVER MINECRAFT (BASH) - Versi Final Lengkap
+#   PANEL SERVER MINECRAFT (BASH) - Versi Final
 # ==============================================================================
 
 # --- Konfigurasi Path Utama ---
@@ -85,16 +85,16 @@ do_bot_menu(){ if declare -F botMenu >/dev/null; then botMenu; else echo -e "${R
 do_backup_menu(){ if declare -F backupMenu >/dev/null; then backupMenu; else echo -e "${RED}ERROR: Fungsi 'backupMenu' tidak ditemukan.${NC}"; read -rp "Tekan [Enter]..."; fi; }
 do_ports_menu(){ if declare -F portsMenu >/dev/null; then portsMenu; else echo -e "${RED}ERROR: Fungsi 'portsMenu' tidak ditemukan.${NC}"; read -rp "Tekan [Enter]..."; fi; }
 do_monitor(){
-  if ! need_cmd gotop; then
-    read -p "Perintah 'gotop' tidak ditemukan. Coba install sekarang? (y/n): " confirm
+  if ! need_cmd btop; then
+    read -p "Perintah 'btop' tidak ditemukan. Coba install sekarang? (y/n): " confirm
     if [[ "$confirm" == "y" ]]; then
-      echo "Menginstal gotop..."
-      sudo apt-get update && sudo apt-get install -y gotop
+      echo "Menginstal btop..."
+      sudo apt-get update && sudo apt-get install -y btop
     else
       return
     fi
   fi
-  clear; gotop
+  clear; btop
 }
 
 # ==============================================================================
@@ -111,7 +111,7 @@ mainMenu(){
     echo -e " ${YELLOW}3${NC}) Hapus Server"
     echo -e "\n${BLUE}--- UTILITAS VPS ---${NC}"
     echo -e " ${YELLOW}4${NC}) Manajemen RAM Swap"
-    echo -e " ${YELLOW}5${NC}) Monitor Sumber Daya (gotop)"
+    echo -e " ${YELLOW}5${NC}) Monitor Sumber Daya"
     echo -e " ${YELLOW}6${NC}) Cek Port & Layanan"
     echo -e "\n${BLUE}--- FITUR TAMBAHAN ---${NC}"
     echo -e " ${YELLOW}7${NC}) Menu Bot Telegram"
