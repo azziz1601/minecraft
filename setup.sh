@@ -183,6 +183,8 @@ deploy_repo() {
   spinner_run "Mengatur izin eksekusi skrip" bash -c "
     chmod +x '$PANEL_DIR'/*.sh 2>/dev/null || true
     chmod +x '$PANEL_DIR'/functions/*.sh 2>/dev/null || true
+    dos2unix /root/mc-panel/functions/plugin_web.sh
+    dos2unix /root/mc-panel/functions/plugin_web.py
   "
   spinner_run "Membersihkan berkas sementara" bash -c "rm -rf '$TMP_CLONE_DIR'"
 }
@@ -245,6 +247,7 @@ clone_repo
 deploy_repo
 install_alias_and_autostart
 post_info
+
 
 
 
