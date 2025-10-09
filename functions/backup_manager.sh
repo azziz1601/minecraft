@@ -139,9 +139,9 @@ function backupMenu() {
         echo -e "${BLUE}--- Manajemen Backup & Migrasi Server ---${NC}"
         echo -e "${YELLOW}Metode ini cocok untuk memindahkan server antar VPS.${NC}"
         echo "-----------------------------------------------------"
-        echo "1. Buat Backup (Menghasilkan Link)"
+        echo "1. Buat Link Backup"
         echo "2. Restore dari Link"
-        echo "3. Migrasi Server ke VPS Lain (via rsync/SSH)"
+        echo "3. Transfer Data Server Via SSH"
         echo "0. Kembali ke Menu Utama"
         echo "-----------------------------------------------------"
         read -p "Masukkan pilihan: " choice
