@@ -144,7 +144,7 @@ configEditorMenu(){
     done
     [ $idx -eq 1 ] && echo " (Belum ada file konfigurasi umum yang terdeteksi.)"
     echo -e "\nAksi lain:"
-    echo " 99) Buka folder server (mc)"
+    echo " 99) Buka folder server"
     echo "  0) Kembali"
     read -rp "Pilih nomor file untuk diedit: " pick
     if [ "$pick" = "0" ]; then
@@ -282,26 +282,26 @@ serverActionMenu(){
     printf " %-12s : ${YELLOW}%s${NC}\n" "Domain" "$domain_info"
     printf " %-12s : ${YELLOW}%s${NC}\n" "Port" "$port_info"
     echo -e "\n${BLUE}--- KONTROL SERVER ---${NC}"
-    echo " 1. Mulai Server"
-    echo " 2. Hentikan Server"
+    echo " 1. Start Server"
+    echo " 2. Stop Server"
     echo " 3. Restart Server"
-    echo " 4. Akses Konsol"
+    echo " 4. Open Console"
     echo -e "\n${BLUE}--- MANAJEMEN & KONFIGURASI ---${NC}"
     echo " 5. Kelola Pemain"
     echo " 6. Editor Konfigurasi"
-    echo " 7. Manajer File (mc)"
-    echo " 8. Pengaturan Alokasi RAM"
-    echo " 9. Jadwal Restart Otomatis"
+    echo " 7. File Manager"
+    echo " 8. RAM Alocation"
+    echo " 9. Set Auto Restart"
     echo "10. Website Upload Plugin"
-    echo -e "\n${YELLOW} 0. Kembali ke Menu Utama${NC}"
+    echo -e "\n${YELLOW} 0. Back To Main Menu${NC}"
     read -rp "Masukkan pilihan: " choice
     case "$choice" in
       1)
         if ! tmux has-session -t "$server_name" 2>/dev/null; then
-          loadingAnimation "Memulai server" & local pid=$!
+          loadingAnimation "Starting server" & local pid=$!
           tmux new-session -d -s "$server_name" "cd '$server_path' && ./start.sh"
           sleep 2; kill $pid &>/dev/null; tput cnorm
-          echo -e "\r${GREEN}Server dimulai.${NC}"; sleep 1
+          echo -e "\r${GREEN}Server run.${NC}"; sleep 1
         else
           echo -e "${YELLOW}Server sudah berjalan.${NC}"; sleep 1
         fi ;;
