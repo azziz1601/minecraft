@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Join Zero Ends SMP</title>
+  <meta name="description" content="Satu klik untuk join Zero Ends SMP. Pilih Bedrock atau salin IP secara cepat." />
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111a2e; --accent:#4ade80; --accent2:#60a5fa; --warn:#f59e0b; --text:#e5e7eb; --muted:#94a3b8;
+      --radius:18px;
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
+    body{margin:0; background: radial-gradient(1200px 600px at 70% -20%, #1f2a44 0%, #0b1220 60%), var(--bg); color:var(--text);}
+    .wrap{max-width:960px; margin:40px auto; padding:24px;}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.08);
+          border-radius:var(--radius); padding:24px; box-shadow:0 12px 40px rgba(0,0,0,0.35);}
+    h1{font-size:2rem; margin:0 0 4px}
+    .badge{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(96,165,250,.18); color:#dbeafe; font-weight:600; font-size:.88rem}
+    .grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin:18px 0 6px}
+    .btn{display:flex; align-items:center; justify-content:center; gap:10px; text-decoration:none; border:none; cursor:pointer; font-weight:700;
+         padding:14px 16px; border-radius:14px; transition:.18s transform, .18s opacity, .18s filter; outline:0}
+    .btn:hover{transform:translateY(-2px); filter:brightness(1.05)}
+    .b-bedrock{background:linear-gradient(135deg, var(--accent2), #7dd3fc); color:#03111f}
+    .b-copy{background:linear-gradient(135deg, var(--accent), #a7f3d0); color:#052012}
+    .b-wa{background:linear-gradient(135deg, #22c55e, #86efac); color:#03140a}
+    .note{color:var(--muted); font-size:.95rem}
+    .kartu{background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.12); border-radius:14px; padding:14px 16px; margin-top:14px}
+    code{background:rgba(2,6,23,.6); padding:2px 6px; border-radius:8px; border:1px solid rgba(255,255,255,.08)}
+    footer{margin-top:22px; color:var(--muted); font-size:.9rem; text-align:center}
+    .pill{padding:4px 10px; border-radius:999px; background:rgba(234,179,8,.15); color:#fde68a; font-weight:600; font-size:.85rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+        <div>
+          <h1>Zero Ends SMP</h1>
+          <div class="badge">Always-Online · Season-based · Claim Land · GSit</div>
+        </div>
+        <div class="pill">Java &amp; Bedrock Cross-community</div>
+      </div>
+
+      <!-- ====== KONFIGURASI CEPAT (EDIT DI SINI JIKA PERLU) ====== -->
+      <script>
+        // Ganti sesuai server kamu:
+        const SERVER_NAME = "Zero Ends";
+        const BEDROCK_HOST = "mc.zero-end.my.id";
+        const BEDROCK_PORT = 19132;      // Bedrock default
+        const JAVA_HOST    = "mc.zero-end.my.id";
+        const JAVA_PORT    = 25565;      // Java default
+        const WA_LINK      = "https://chat.whatsapp.com/CkiPkuGX7WiEYvcQ8L5IWR?mode=ems_copy_t";
+      </script>
+
+      <div class="grid" style="margin-top:16px">
+        <!-- Tombol Join Bedrock (deep link) -->
+        <a id="btnBedrock" class="btn b-bedrock" href="#" rel="nofollow">
+          <span>🎮 Join via Minecraft Bedrock</span>
+        </a>
+
+        <!-- Tombol Copy IP -->
+        <button id="btnCopy" class="btn b-copy">
+          📋 Salin IP &amp; Port
+        </button>
+
+        <!-- WhatsApp Community -->
+        <a id="btnWA" class="btn b-wa" target="_blank" rel="noopener">
+          💬 Gabung Komunitas WhatsApp
+        </a>
+      </div>
+
+      <div class="kartu">
+        <strong>Jika tombol Bedrock tidak membuka Minecraft:</strong>
+        <div class="note" style="margin-top:6px">
+          1) Pastikan Minecraft Bedrock terpasang. 2) Coba buka dari browser lain (Chrome sering memblokir skema <code>minecraft://</code> saat di dalam aplikasi chat).
+        </div>
+      </div>
+
+      <div class="kartu">
+        <strong>Detail Server</strong>
+        <div class="note" style="margin-top:6px; line-height:1.7">
+          • Bedrock: <code id="txtBedrock"></code><br/>
+          • Java (manual): <code id="txtJava"></code><br/>
+          • Fitur: Claim Land, GSit (duduk di tangga/menunggangi), 24/7 online, musim (season) berkala agar dunia selalu fresh.
+        </div>
+      </div>
+
+      <footer>
+        Tip: simpan halaman ini ke layar beranda agar tombol cepat selalu tersedia.
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // Isi teks detail
+    const elBR = document.getElementById("txtBedrock");
+    const elJV = document.getElementById("txtJava");
+    elBR.textContent = `${BEDROCK_HOST}:${BEDROCK_PORT}`;
+    elJV.textContent = `${JAVA_HOST}:${JAVA_PORT}`;
+
+    // Deep link Bedrock (addExternalServer)
+    // Format: minecraft://?addExternalServer=<Name>|<Address>:<Port>
+    const bedrockURL = `minecraft://?addExternalServer=${encodeURIComponent(SERVER_NAME)}|${BEDROCK_HOST}:${BEDROCK_PORT}`;
+    const btnBedrock = document.getElementById("btnBedrock");
+    btnBedrock.href = bedrockURL;
+
+    // WhatsApp
+    const btnWA = document.getElementById("btnWA");
+    btnWA.href = WA_LINK;
+
+    // Copy IP
+    const btnCopy = document.getElementById("btnCopy");
+    btnCopy.addEventListener("click", async () => {
+      const text = `Bedrock: ${BEDROCK_HOST}:${BEDROCK_PORT}\nJava: ${JAVA_HOST}:${JAVA_PORT}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        btnCopy.textContent = "✅ Disalin!";
+        setTimeout(()=> btnCopy.textContent = "📋 Salin IP & Port", 1600);
+      } catch {
+        // Fallback seleksi teks
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        btnCopy.textContent = "✅ Disalin!";
+        setTimeout(()=> btnCopy.textContent = "📋 Salin IP & Port", 1600);
+      }
+    });
+
+    // Deteksi dalam WebView/WhatsApp agar beri peringatan kecil
+    const ua = navigator.userAgent.toLowerCase();
+    const isInApp = /wv|line\/|messenger|fbios|fb_iab|instagram|twitter|whatsapp|telegram/i.test(ua);
+    if (isInApp) {
+      const note = document.createElement("div");
+      note.className = "kartu";
+      note.innerHTML = "<strong>Catatan:</strong> Kamu membuka dari aplikasi. Jika tombol Bedrock tidak bekerja, tap ••• lalu 'Buka di Browser' (Chrome/Edge/Safari).";
+      document.querySelector(".card").appendChild(note);
+    }
+  </script>
+</body>
+</html>
