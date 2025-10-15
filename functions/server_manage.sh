@@ -8,6 +8,17 @@ FUNCTIONS_DIR="${FUNCTIONS_DIR:-$BASE_DIR/functions}"
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 EDITOR_BIN="${EDITOR:-nano}"
 
+# --- Load semua modul di functions/ (agar systemdMenu, dll. tersedia) ---
+if [[ -d "$FUNCTIONS_DIR" ]]; then
+  shopt -s nullglob
+  for f in "$FUNCTIONS_DIR"/*.sh; do
+    [[ "$(basename "$f")" == "server_manage.sh" ]] && continue
+    # shellcheck source=/dev/null
+    source "$f"
+  done
+  shopt -u nullglob
+fi
+
 need_cmd(){ command -v "$1" >/dev/null 2>&1; }
 
 ensure_dos2unix(){
