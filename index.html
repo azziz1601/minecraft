@@ -10,12 +10,14 @@
   <style>
     :root {
       --bg-overlay: rgba(10, 15, 25, 0.25);
-      --card-bg: rgba(15, 22, 38, 0.8);
-      --card-border: rgba(255, 255, 255, 0.1);
+      /* Transparansi kartu ditingkatkan dari 0.8 menjadi 0.55 */
+      --card-bg: rgba(15, 22, 38, 0.55);
+      --card-border: rgba(255, 255, 255, 0.15);
       --text-primary: #f0f4f8;
       --text-secondary: #a0b0cc;
-      --brand-start: #00d19a;
-      --brand-end: #00a37a;
+      /* Warna tombol diubah menjadi gradien ungu-biru modern */
+      --brand-start: #8E2DE2;
+      --brand-end: #4A00E0;
       --shadow-color: rgba(0, 0, 0, 0.25);
     }
     
@@ -53,8 +55,9 @@
       border-radius: 16px;
       padding: 28px 32px;
       box-shadow: 0 12px 30px var(--shadow-color);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      /* Blur ditingkatkan agar teks tetap terbaca dengan kartu yg lebih transparan */
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       width: 100%;
       height: 100%;
       display: flex;
@@ -66,7 +69,8 @@
       margin: 0 0 8px 0;
       font-size: 26px;
       font-weight: 700;
-      background: linear-gradient(45deg, var(--brand-start), #3de0bd);
+      /* Menggunakan warna brand baru untuk judul */
+      background: linear-gradient(45deg, var(--brand-start), var(--brand-end));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-align: center;
@@ -97,7 +101,8 @@
       text-align: center;
       color: #ffffff;
       background: linear-gradient(180deg, var(--brand-start), var(--brand-end));
-      box-shadow: 0 8px 18px rgba(0, 209, 154, .2);
+      /* Shadow disesuaikan dengan warna tombol baru */
+      box-shadow: 0 8px 18px rgba(142, 45, 226, .25);
       transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
       cursor: pointer;
     }
@@ -105,7 +110,7 @@
     .btn:hover {
       filter: brightness(1.1);
       transform: translateY(-2px);
-      box-shadow: 0 12px 24px rgba(0, 209, 154, .25);
+      box-shadow: 0 12px 24px rgba(142, 45, 226, .3);
     }
 
     .btn:active {
@@ -160,12 +165,11 @@
   <footer>© <span id="year"></span> Zero Ends • Online 24/7</footer>
 
   <script>
-    // ======= DAFTAR GAMBAR LATAR BELAKANG =======
     const backgroundImages = [
       'https://wallpapercave.com/wp/wp6005486.jpg',
-      'https://wallpapers.com/images/high/minecraft-shaders-1920-x-1080-7mlqa13pjpr28fro.webp', // Link baru
-      'https://wallpapercave.com/wp/wp6005719.png', // Link baru
-      'https://wallpapercave.com/wp/wp7595215.jpg'  // Link baru
+      'https://wallpapers.com/images/high/minecraft-shaders-1920-x-1080-7mlqa13pjpr28fro.webp',
+      'https://wallpapercave.com/wp/wp6005719.png',
+      'https://wallpapercave.com/wp/wp7595215.jpg'
     ];
 
     function setRandomBackground() {
@@ -177,16 +181,12 @@
     }
 
     setRandomBackground();
-    // ===============================================
 
-
-    // ======= KONFIGURASI SERVER =======
     const SERVER_NAME  = "Zero Ends";
     const SERVER_HOST  = "mc.zero-end.my.id";
     const BEDROCK_PORT = 19132;
     const JAVA_PORT    = 25565;
     const WA_LINK      = "https://chat.whatsapp.com/CkiPkuGX7WiEYvcQ8L5IWR?mode=ems_copy_t";
-    // ===================================================
 
     document.getElementById('year').textContent = new Date().getFullYear();
 
