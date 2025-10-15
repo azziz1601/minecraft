@@ -1,13 +1,4 @@
-<!doctype html>
-<html lang="id">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale-1" />
-  <title>Zero Ends — Join Server</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
+<style>
     :root {
       --bg-overlay: rgba(10, 15, 25, 0.6);
       --card-bg: rgba(15, 22, 38, 0.75);
@@ -28,8 +19,8 @@
     body {
       font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Noto Sans', sans-serif;
       color: var(--text-primary);
-      /* Ganti URL gambar jika Anda punya gambar sendiri */
-      background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), url('https://i.imgur.com/8z3v3fF.jpeg');
+      /* --- INI BAGIAN YANG DIPERBARUI --- */
+      background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), url('background.jpg');
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
@@ -151,63 +142,4 @@
       text-align: center;
       opacity: 0.8;
     }
-  </style>
-</head>
-<body>
-  <main class="wrap">
-    <section class="card">
-      <h1>Selamat Datang di Zero Ends</h1>
-      <p class="sub">Pilih edisi Minecraft Anda untuk langsung bergabung ke server atau salin alamat untuk Edisi Java.</p>
-
-      <div class="row">
-        <a id="btnBedrock" class="btn" href="#">🎮 Buka di Bedrock</a>
-        <button id="btnJava" class="btn ghost">🖥️ Salin Alamat Java</button>
-      </div>
-
-      <a id="btnWA" class="btn" href="#" target="_blank" rel="noopener">💬 Gabung Komunitas WhatsApp</a>
-
-      <p class="hint">
-        <b>Alamat Java:</b> <span id="addrJava" class="mono"></span><br>
-        <b>Info:</b> Tombol Bedrock akan otomatis menambahkan server ke daftar Anda.
-      </p>
-    </section>
-    <footer>© <span id="year"></span> Zero Ends • Online 24/7</footer>
-  </main>
-
-  <script>
-    // ======= KONFIGURASI (ganti sesuai servermu) =======
-    const SERVER_NAME  = "Zero Ends";
-    const SERVER_HOST  = "mc.zero-end.my.id";
-    const BEDROCK_PORT = 19132;       // Bedrock default
-    const JAVA_PORT    = 25565;       // Java default
-    const WA_LINK      = "https://chat.whatsapp.com/CkiPkuGX7WiEYvcQ8L5IWR?mode=ems_copy_t";
-    // ===================================================
-
-    document.getElementById('serverName').textContent = SERVER_NAME;
-    document.getElementById('addrJava').textContent   = `${SERVER_HOST}:${JAVA_PORT}`;
-    document.getElementById('year').textContent       = new Date().getFullYear();
-
-    // Deep link Bedrock: minecraft://?addExternalServer=Name|host:port
-    const bedrockLink = `minecraft://?addExternalServer=${encodeURIComponent(SERVER_NAME)}|${SERVER_HOST}:${BEDROCK_PORT}`;
-    document.getElementById('btnBedrock').href = bedrockLink;
-
-    // Java: salin ip:port ke clipboard
-    async function copyJava() {
-      const text = `${SERVER_HOST}:${JAVA_PORT}`;
-      const btn = document.getElementById('btnJava');
-      try {
-        await navigator.clipboard.writeText(text);
-        const oldText = btn.innerHTML;
-        btn.innerHTML = "✅ Alamat Disalin!";
-        setTimeout(()=> { btn.innerHTML = oldText; }, 2000);
-      } catch {
-        window.prompt("Gagal menyalin otomatis. Silakan salin alamat ini:", text);
-      }
-    }
-    document.getElementById('btnJava').addEventListener('click', copyJava);
-
-    // WA link
-    document.getElementById('btnWA').href = WA_LINK;
-  </script>
-</body>
-</html>
+</style>
