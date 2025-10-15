@@ -2,39 +2,267 @@
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Join Zero Ends SMP</title>
-  <meta name="description" content="Satu klik untuk join Zero Ends SMP. Pilih Bedrock atau salin IP secara cepat." />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Join Zero Ends (Bedrock)</title>
+
+  <!-- ==== GANTI JIKA PERLU ====
+       SERVER_NAME  : nama tampilan server di Minecraft
+       SERVER_HOST  : domain/IP server Bedrock
+       SERVER_PORT  : port Bedrock (default 19132)
+  -->
+  <meta name="server:name" content="Zero Ends" />
+  <meta name="server:host" content="mc.zero-end.my.id" />
+  <meta name="server:port" content="19132" />
+
+  <!-- Open Graph untuk preview di WhatsApp / medsos -->
+  <meta property="og:title" content="Zero Ends SMP — Tap untuk tambah server (Bedrock)" />
+  <meta property="og:description" content="Tap tombolnya, Minecraft Bedrock akan terbuka dan server Zero Ends otomatis ditambahkan ke daftar." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://<username>.github.io/zeroends-site/" />
+  <meta name="theme-color" content="#00d19a" />
+
   <style>
-    :root{
-      --bg:#0b1220; --card:#111a2e; --accent:#4ade80; --accent2:#60a5fa; --warn:#f59e0b; --text:#e5e7eb; --muted:#94a3b8;
-      --radius:18px;
+    :root {
+      --bg: #0b0f14;
+      --card: #111824;
+      --muted: #9fb3c8;
+      --text: #e6f1ff;
+      --brand: #00d19a;
+      --brand-2: #3ee4c1;
+      --accent: #4cc9f0;
+      --warn: #ffcf5c;
     }
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif}
-    body{margin:0; background: radial-gradient(1200px 600px at 70% -20%, #1f2a44 0%, #0b1220 60%), var(--bg); color:var(--text);}
-    .wrap{max-width:960px; margin:40px auto; padding:24px;}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.08);
-          border-radius:var(--radius); padding:24px; box-shadow:0 12px 40px rgba(0,0,0,0.35);}
-    h1{font-size:2rem; margin:0 0 4px}
-    .badge{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(96,165,250,.18); color:#dbeafe; font-weight:600; font-size:.88rem}
-    .grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin:18px 0 6px}
-    .btn{display:flex; align-items:center; justify-content:center; gap:10px; text-decoration:none; border:none; cursor:pointer; font-weight:700;
-         padding:14px 16px; border-radius:14px; transition:.18s transform, .18s opacity, .18s filter; outline:0}
-    .btn:hover{transform:translateY(-2px); filter:brightness(1.05)}
-    .b-bedrock{background:linear-gradient(135deg, var(--accent2), #7dd3fc); color:#03111f}
-    .b-copy{background:linear-gradient(135deg, var(--accent), #a7f3d0); color:#052012}
-    .b-wa{background:linear-gradient(135deg, #22c55e, #86efac); color:#03140a}
-    .note{color:var(--muted); font-size:.95rem}
-    .kartu{background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.12); border-radius:14px; padding:14px 16px; margin-top:14px}
-    code{background:rgba(2,6,23,.6); padding:2px 6px; border-radius:8px; border:1px solid rgba(255,255,255,.08)}
-    footer{margin-top:22px; color:var(--muted); font-size:.9rem; text-align:center}
-    .pill{padding:4px 10px; border-radius:999px; background:rgba(234,179,8,.15); color:#fde68a; font-weight:600; font-size:.85rem}
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Cantarell, Ubuntu, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 80% -10%, #0f172a 0%, #0b0f14 55%) no-repeat, var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      backdrop-filter: blur(4px);
+    }
+    .head {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .logo {
+      width: 64px; height: 64px; border-radius: 14px;
+      background: conic-gradient(from 180deg at 50% 50%, var(--brand), var(--brand-2), var(--accent), var(--brand));
+      display: grid; place-items: center;
+      color: #071e17; font-weight: 800; font-size: 18px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: inset 0 0 30px rgba(255,255,255,0.15);
+    }
+    h1 { margin: 0; font-size: 24px; }
+    .sub { color: var(--muted); margin-top: 4px; font-size: 14px; }
+    .grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      text-decoration: none;
+      color: #041410;
+      background: linear-gradient(180deg, var(--brand), var(--brand-2));
+      font-weight: 700;
+      transition: transform .08s ease, filter .2s ease;
+      box-shadow: 0 10px 22px rgba(0, 209, 154, 0.25);
+    }
+    .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.secondary {
+      background: #14202d;
+      color: var(--text);
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: none;
+    }
+    .btn.warn {
+      background: linear-gradient(180deg, #ffd57a, #ffcf5c);
+      color: #3b2e04;
+      box-shadow: 0 10px 22px rgba(255, 207, 92, 0.22);
+    }
+    .row {
+      display: grid;
+      gap: 12px;
+    }
+    @media (min-width: 640px) {
+      .row { grid-template-columns: 1fr auto; align-items: stretch; }
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 14px;
+      color: var(--accent);
+    }
+    .kvs {
+      display: grid; gap: 10px; margin-top: 6px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 12px;
+    }
+    .kv { display: flex; justify-content: space-between; gap: 10px; }
+    .kv b { color: var(--muted); font-weight: 600; }
+    .muted { color: var(--muted); font-size: 13px; }
+    footer { margin-top: 22px; color: var(--muted); font-size: 12px; text-align: center; }
+    .tip {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: rgba(76,201,240,0.06);
+      border: 1px solid rgba(76,201,240,0.25);
+      padding: 12px; border-radius: 12px;
+      margin-top: 12px; color: #c7eaff;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px; border-radius: 999px;
+      background: rgba(0,209,154,0.1);
+      color: var(--brand-2);
+      border: 1px solid rgba(0,209,154,0.25);
+      font-size: 12px; font-weight: 700;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+  <main class="wrap">
+    <section class="card">
+      <div class="head">
+        <div class="logo">ZE</div>
+        <div>
+          <div class="badge">Bedrock Ready</div>
+          <h1>Join <strong>Zero Ends SMP</strong> (Bedrock)</h1>
+          <p class="sub">Tap tombol di bawah — Minecraft Bedrock akan terbuka dan server otomatis ditambahkan ke daftar.</p>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- Tombol deep link Bedrock -->
+        <a id="deepLinkBtn" class="btn" href="#">
+          🎮 Tambahkan ke Minecraft Bedrock
+        </a>
+
+        <!-- Fallback: salin alamat -->
+        <div class="row">
+          <div class="card" style="background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); padding: 12px;">
+            <div class="kvs">
+              <div class="kv"><b>Nama</b><span id="kvName">Zero Ends</span></div>
+              <div class="kv"><b>Alamat</b><span class="mono" id="kvAddr">mc.zero-end.my.id</span></div>
+              <div class="kv"><b>Port</b><span class="mono" id="kvPort">19132</span></div>
+            </div>
+            <p class="muted" style="margin:10px 0 0">
+              Jika tombol tidak berfungsi (mis. dibuka dari aplikasi yang memblokir deep link), salin alamat & port di atas lalu tambah server secara manual di Minecraft&nbsp;Bedrock.
+            </p>
+          </div>
+          <button class="btn secondary" id="copyBtn">📋 Salin Alamat:Port</button>
+        </div>
+
+        <!-- Tips agar deep link berjalan dari WhatsApp/Browser -->
+        <div class="tip">
+          <div>💡</div>
+          <div>
+            <b>Tips:</b> Jika membuka dari WhatsApp/Telegram dan tombol tidak bereaksi, ketuk menu ⋮ lalu pilih <i>“Buka di browser (Chrome/Safari)”</i> dan coba lagi.
+          </div>
+        </div>
+
+        <!-- Tombol uji deteksi -->
+        <button class="btn warn" id="testBtn">🧪 Uji dukungan deep link di perangkat saya</button>
+        <div id="testResult" class="muted"></div>
+      </div>
+
+      <footer>
+        © <span id="year"></span> Zero Ends — Online 24/7 • Cross-platform via Geyser • Season-based World
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    // BACA META (biar mudah ganti via <meta> di head)
+    const meta = (name, def='') => document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || def;
+    const SERVER_NAME = meta('server:name', 'Zero Ends');
+    const SERVER_HOST = meta('server:host', 'mc.zero-end.my.id');
+    const SERVER_PORT = meta('server:port', '19132');
+
+    // Isi data tampilan
+    document.getElementById('kvName').textContent = SERVER_NAME;
+    document.getElementById('kvAddr').textContent = SERVER_HOST;
+    document.getElementById('kvPort').textContent = SERVER_PORT;
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Deep link format (Bedrock): minecraft://?addExternalServer=Name|host:port
+    const buildDeepLink = () => {
+      const name = encodeURIComponent(SERVER_NAME);
+      const addrPort = `${SERVER_HOST}:${SERVER_PORT}`;
+      return `minecraft://?addExternalServer=${name}|${addrPort}`;
+    };
+
+    // Pasang href ke tombol
+    const deepLinkBtn = document.getElementById('deepLinkBtn');
+    deepLinkBtn.href = buildDeepLink();
+
+    // Copy alamat:port
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const text = `${SERVER_HOST}:${SERVER_PORT}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        const old = document.getElementById('copyBtn').textContent;
+        document.getElementById('copyBtn').textContent = "✅ Disalin!";
+        setTimeout(() => document.getElementById('copyBtn').textContent = old, 1400);
+      } catch {
+        // Fallback: prompt
+        window.prompt("Salin alamat berikut:", text);
+      }
+    });
+
+    // Tes dukungan deep link (heuristik sederhana)
+    document.getElementById('testBtn').addEventListener('click', () => {
+      const result = document.getElementById('testResult');
+      // Jika user-agent mengandung Minecraft Bedrock? (hampir tidak mungkin di browser)
+      // Yang bisa kita lakukan: arahkan ke deep link & beri info fallback.
+      const link = buildDeepLink();
+      const t0 = Date.now();
+      let navigated = false;
+
+      // Coba buka deep link
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = link;
+      document.body.appendChild(iframe);
+
+      setTimeout(() => {
+        const elapsed = Date.now() - t0;
+        // Jika tetap di halaman > 1.2s, kemungkinan deep link diblok atau app tidak terpasang
+        if (!navigated && elapsed > 1200) {
+          result.innerHTML = "❌ Sepertinya deep link tidak bisa dibuka langsung dari sini. "
+            + "Coba tap ⋮ di kanan atas lalu pilih <b>Buka di browser</b> (Chrome/Safari), "
+            + "atau salin alamat server dan tambah manual di Minecraft.";
+        }
+        document.body.removeChild(iframe);
+      }, 1500);
+    });
+  </script>
+</body>
+</html>      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
         <div>
           <h1>Zero Ends SMP</h1>
           <div class="badge">Always-Online · Season-based · Claim Land · GSit</div>
