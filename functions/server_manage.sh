@@ -293,6 +293,7 @@ serverActionMenu(){
     echo " 8. RAM Alocation"
     echo " 9. Set Auto Restart"
     echo "10. Website Upload Plugin"
+    echo "11. Systemd Autostart"
     echo -e "\n${YELLOW} 0. Back To Main Menu${NC}"
     read -rp "Masukkan pilihan: " choice
     case "$choice" in
@@ -348,6 +349,14 @@ serverActionMenu(){
       8) ramAllocationMenu "$server_name" ;;
       9) autoRestartMenu "$server_name" ;;
       10) pluginWebMenu "$server_name" ;;
+      11) 
+  if declare -F systemdMenu >/dev/null; then
+    systemdMenu "$server_name"
+  else
+    echo "Module systemd_manager.sh belum dimuat."
+    read -rp "Tekan [Enter]..."
+  fi
+  ;;
       0) return ;;
       *) echo -e "${RED}Pilihan tidak valid.${NC}"; sleep 1 ;;
     esac
