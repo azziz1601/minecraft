@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# setup.sh — Siapkan VPS untuk Panel Minecraft + tarik skrip dari GitHub
-# Fitur:
-# - Instal paket dasar (silent + spinner)
-# - Pasang Java 21:
-#     • Debian 11/12 -> Oracle .deb x64
-#     • Ubuntu 22.04/24.04:
-#         - amd64 -> Oracle .deb x64
-#         - arm64 -> Oracle tar.gz aarch64
-# - Pasang gotop via SNAP (sesuai permintaan). Jika gagal, fallback ke btop + wrapper "gotop".
-# - Tarik seluruh skrip repo GitHub Anda dan susun ke /root/mc-panel
-# - Pastikan prasyarat ports.sh (ss/iproute2, lsof, awk, sed, column, tput) terpasang
-# - Set alias `menu` dan autostart panel saat login shell interaktif root
-# - Seluruh output teknis dicatat ke /var/log/mc-panel-setup.log; layar hanya spinner/progress
 
 set -euo pipefail
 
@@ -233,6 +220,72 @@ post_info() {
   echo
 }
 
+write_systemd_unit() {
+  log "Menulis /etc/systemd/system/minecraft@.service"
+  cat > /etc/systemd/system/minecraft@.service <<'UNIT'
+# /etc/systemd/system/minecraft@.service
+[Unit]
+Description=Minecraft Server (%i) via tmux
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+GuessMainPID=no
+RemainAfterExit=yes
+
+# -- SESUAIKAN JIKA PERLU --
+User=root
+Environment=PANEL_DIR=/root/mc-panel
+Environment=SESSION=%i
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+# ---------------------------
+
+WorkingDirectory=/
+
+ExecStartPre=/usr/bin/test -x /usr/bin/tmux
+ExecStartPre=/usr/bin/test -d ${PANEL_DIR}/servers/%i
+ExecStartPre=/usr/bin/test -x ${PANEL_DIR}/servers/%i/start.sh
+
+ExecStart=/bin/bash -lc '\
+  if ! tmux has-session -t "$SESSION" 2>/dev/null; then \
+    tmux new-session -d -s "$SESSION" "cd \"${PANEL_DIR}/servers/${SESSION}\" && ./start.sh"; \
+  fi \
+'
+
+ExecStartPost=/bin/bash -lc '\
+  for i in {1..15}; do \
+    tmux has-session -t "$SESSION" 2>/dev/null && exit 0; \
+    sleep 1; \
+  done; \
+  echo "ERROR: tmux session $SESSION tidak ditemukan (start.sh mungkin error)"; \
+  exit 1 \
+'
+
+ExecStop=/bin/bash -lc '\
+  if tmux has-session -t "$SESSION" 2>/dev/null; then \
+    tmux send-keys -t "$SESSION" "say [Panel] Server stopping in 5s..." C-m; \
+    sleep 5; \
+    tmux send-keys -t "$SESSION" "stop" C-m; \
+    for i in {1..60}; do tmux has-session -t "$SESSION" 2>/dev/null || break; sleep 1; done; \
+    tmux has-session -t "$SESSION" 2>/dev/null && tmux kill-session -t "$SESSION"; \
+  fi; \
+  true \
+'
+
+Restart=on-failure
+RestartSec=10
+KillMode=process
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+  chmod 0644 /etc/systemd/system/minecraft@.service
+  systemctl daemon-reload
+}
+
 # ============================ MAIN ================================
 require_root
 detect_os
@@ -246,7 +299,9 @@ prepare_panel_dir
 clone_repo
 deploy_repo
 install_alias_and_autostart
+write_systemd_unit
 post_info
+
 
 
 
