@@ -9,8 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-overlay: rgba(10, 15, 25, 0.6);
-      --card-bg: rgba(15, 22, 38, 0.75);
+      --bg-overlay: rgba(10, 15, 25, 0.25);
+      --card-bg: rgba(15, 22, 38, 0.8);
       --card-border: rgba(255, 255, 255, 0.1);
       --text-primary: #f0f4f8;
       --text-secondary: #a0b0cc;
@@ -28,7 +28,7 @@
     body {
       font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Noto Sans', sans-serif;
       color: var(--text-primary);
-      background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), url('https://wallpapercave.com/wp/wp6005486.jpg');
+      background-color: #1a1a1a;
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
@@ -37,11 +37,14 @@
       align-items: center;
       min-height: 100vh;
       padding: 20px;
+      transition: background-image 0.5s ease-in-out;
     }
 
     .wrap {
-      max-width: 580px;
+      max-width: 500px;
       width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: 95vh;
     }
 
     .card {
@@ -50,8 +53,13 @@
       border-radius: 16px;
       padding: 28px 32px;
       box-shadow: 0 12px 30px var(--shadow-color);
-      backdrop-filter: blur(12px); /* Efek frosted glass */
+      backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     h1 {
@@ -61,6 +69,7 @@
       background: linear-gradient(45deg, var(--brand-start), #3de0bd);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      text-align: center;
     }
 
     p.sub {
@@ -68,6 +77,7 @@
       color: var(--text-secondary);
       font-size: 15px;
       line-height: 1.6;
+      text-align: center;
     }
 
     .btn {
@@ -76,7 +86,7 @@
       justify-content: center;
       gap: 10px;
       width: 100%;
-      margin: 12px 0;
+      margin: 10px 0;
       padding: 15px 16px;
       border: 0;
       border-radius: 12px;
@@ -117,95 +127,89 @@
     }
 
     .hint {
-      margin-top: 24px;
-      padding-top: 20px;
-      border-top: 1px solid var(--card-border);
-      color: var(--text-secondary);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-    
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      background-color: rgba(0,0,0,0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: var(--text-primary);
-    }
-
-    .row {
-      display: grid;
-      gap: 12px;
-    }
-    @media(min-width:520px) {
-      .row {
-        grid-template-columns: 1fr 1fr;
-      }
+      display: none;
     }
 
     footer {
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      left: 0;
       margin-top: 24px;
       color: var(--text-secondary);
       font-size: 12px;
       text-align: center;
       opacity: 0.8;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
   </style>
 </head>
 <body>
   <main class="wrap">
     <section class="card">
-      <h1>Selamat Datang di Zero Ends</h1>
-      <p class="sub">Pilih edisi Minecraft Anda untuk langsung bergabung ke server atau salin alamat untuk Edisi Java.</p>
-
-      <div class="row">
+      <div>
+        <h1>Zero Ends</h1>
+        <p class="sub">Pilih edisi untuk bergabung atau salin alamat server.</p>
         <a id="btnBedrock" class="btn" href="#">🎮 Buka di Bedrock</a>
         <button id="btnJava" class="btn ghost">🖥️ Salin Alamat Java</button>
+        <a id="btnWA" class="btn" href="#" target="_blank" rel="noopener">💬 Komunitas WhatsApp</a>
       </div>
-
-      <a id="btnWA" class="btn" href="#" target="_blank" rel="noopener">💬 Gabung Komunitas WhatsApp</a>
-
-      <p class="hint">
-        <b>Alamat Java:</b> <span id="addrJava" class="mono"></span><br>
-        <b>Info:</b> Tombol Bedrock akan otomatis menambahkan server ke daftar Anda.
-      </p>
     </section>
-    <footer>© <span id="year"></span> Zero Ends • Online 24/7</footer>
   </main>
+  
+  <footer>© <span id="year"></span> Zero Ends • Online 24/7</footer>
 
   <script>
-    // ======= KONFIGURASI (ganti sesuai servermu) =======
+    // ======= DAFTAR GAMBAR LATAR BELAKANG =======
+    const backgroundImages = [
+      'https://wallpapercave.com/wp/wp6005486.jpg',
+      'https://wallpapercave.com/wp/wp8352632.jpg',
+      'https://wallpapercave.com/wp/wp8352648.jpg',
+      'https://wallpapercave.com/wp/wp9425400.jpg',
+      'https://wallpapers.com/images/high/minecraft-shaders-1920-x-1080-7mlqa13pjpr28fro.webp', // Link baru
+      'https://wallpapercave.com/wp/wp6005719.png', // Link baru
+      'https://wallpapercave.com/wp/wp7595215.jpg'  // Link baru
+    ];
+
+    function setRandomBackground() {
+      const randomIndex = Math.floor(Math.random() * backgroundImages.length);
+      const selectedImage = backgroundImages[randomIndex];
+      const overlay = getComputedStyle(document.documentElement).getPropertyValue('--bg-overlay').trim();
+      
+      document.body.style.backgroundImage = `linear-gradient(${overlay}, ${overlay}), url('${selectedImage}')`;
+    }
+
+    setRandomBackground();
+    // ===============================================
+
+
+    // ======= KONFIGURASI SERVER =======
     const SERVER_NAME  = "Zero Ends";
     const SERVER_HOST  = "mc.zero-end.my.id";
-    const BEDROCK_PORT = 19132;       // Bedrock default
-    const JAVA_PORT    = 25565;       // Java default
+    const BEDROCK_PORT = 19132;
+    const JAVA_PORT    = 25565;
     const WA_LINK      = "https://chat.whatsapp.com/CkiPkuGX7WiEYvcQ8L5IWR?mode=ems_copy_t";
     // ===================================================
 
-    document.getElementById('serverName').textContent = SERVER_NAME;
-    document.getElementById('addrJava').textContent   = `${SERVER_HOST}:${JAVA_PORT}`;
-    document.getElementById('year').textContent       = new Date().getFullYear();
+    document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Deep link Bedrock: minecraft://?addExternalServer=Name|host:port
     const bedrockLink = `minecraft://?addExternalServer=${encodeURIComponent(SERVER_NAME)}|${SERVER_HOST}:${BEDROCK_PORT}`;
     document.getElementById('btnBedrock').href = bedrockLink;
 
-    // Java: salin ip:port ke clipboard
     async function copyJava() {
       const text = `${SERVER_HOST}:${JAVA_PORT}`;
       const btn = document.getElementById('btnJava');
       try {
         await navigator.clipboard.writeText(text);
-        const oldText = btn.innerHTML;
+        const oldHTML = btn.innerHTML;
         btn.innerHTML = "✅ Alamat Disalin!";
-        setTimeout(()=> { btn.innerHTML = oldText; }, 2000);
+        setTimeout(()=> { btn.innerHTML = oldHTML; }, 2000);
       } catch {
-        window.prompt("Gagal menyalin otomatis. Silakan salin alamat ini:", text);
+        window.prompt("Gagal menyalin otomatis. Salin alamat ini:", text);
       }
     }
     document.getElementById('btnJava').addEventListener('click', copyJava);
 
-    // WA link
     document.getElementById('btnWA').href = WA_LINK;
   </script>
 </body>
