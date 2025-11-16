@@ -121,7 +121,7 @@ mainMenu(){
     read -rp "Pilih Opsi: " ch
     case "$ch" in
       1) do_create_server ;;
-      2) "$FUNCTIONS_DIR/server_manage.sh" ;;
+      2) manageServers ;;
       3) do_delete_server ;;
       4) do_swap_menu ;;
       5) do_monitor ;;
