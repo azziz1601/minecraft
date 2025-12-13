@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
 
-SERVERS_DIR="${SERVERS_DIR:-/root/mc-panel/servers}"
+# ==============================================================================
+#   SERVER MANAGER (Non-Root Compatible)
+# ==============================================================================
+
+# --- Deteksi Path Dinamis ---
+# Mengambil lokasi script ini (functions/), lalu naik satu level ke folder utama
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd "$SELF_DIR/.." && pwd)"
+
+# Gunakan variabel lingkungan jika ada, jika tidak gunakan path relatif dari BASE_DIR
+SERVERS_DIR="${SERVERS_DIR:-$BASE_DIR/servers}"
 FUNCTIONS_DIR="${FUNCTIONS_DIR:-$BASE_DIR/functions}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 EDITOR_BIN="${EDITOR:-nano}"
 
-# --- Load semua modul di functions/ (agar systemdMenu, dll. tersedia) ---
+# --- Load semua modul lain ---
 if [[ -d "$FUNCTIONS_DIR" ]]; then
   shopt -s nullglob
   for f in "$FUNCTIONS_DIR"/*.sh; do
+    # Hindari meload diri sendiri agar tidak loop
     [[ "$(basename "$f")" == "server_manage.sh" ]] && continue
     # shellcheck source=/dev/null
     source "$f"
@@ -23,15 +32,25 @@ need_cmd(){ command -v "$1" >/dev/null 2>&1; }
 
 ensure_dos2unix(){
   if ! need_cmd dos2unix; then
-    DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null 2>&1 || true
-    DEBIAN_FRONTEND=noninteractive apt-get install -y dos2unix >/dev/null 2>&1 || true
+    echo -e "${YELLOW}dos2unix tidak ditemukan. Mencoba menginstal...${NC}"
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        # Jika bukan root, pakai sudo
+        sudo apt-get update -y >/dev/null 2>&1 || true
+        sudo apt-get install -y dos2unix >/dev/null 2>&1 || true
+    else
+        # Jika root
+        DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null 2>&1 || true
+        DEBIAN_FRONTEND=noninteractive apt-get install -y dos2unix >/dev/null 2>&1 || true
+    fi
   fi
 }
 
 normalize_scripts(){
   ensure_dos2unix
+  # Redirect error ke /dev/null agar tidak spam jika permission denied di file sistem
   find "$FUNCTIONS_DIR" -maxdepth 1 -type f \( -name '*.sh' -o -name '*.py' \) -print0 2>/dev/null | xargs -0 -r dos2unix >/dev/null 2>&1 || true
   find "$BASE_DIR" -maxdepth 1 -type f -name '*.sh' -print0 2>/dev/null | xargs -0 -r dos2unix >/dev/null 2>&1 || true
+  
   chmod +x "$FUNCTIONS_DIR"/*.sh 2>/dev/null || true
   chmod +x "$BASE_DIR"/*.sh 2>/dev/null || true
 }
@@ -78,7 +97,10 @@ consoleCmd(){
 
 lastLogMatch(){
   local server_path="$1" pattern="$2"
-  tac "$server_path/logs/latest.log" 2>/dev/null | grep -m1 -E "$pattern"
+  # Pastikan file log ada sebelum di-tac
+  if [ -f "$server_path/logs/latest.log" ]; then
+      tac "$server_path/logs/latest.log" 2>/dev/null | grep -m1 -E "$pattern"
+  fi
 }
 
 pause(){ read -rp $'\nTekan [Enter] untuk lanjut...'; }
@@ -155,13 +177,19 @@ configEditorMenu(){
     done
     [ $idx -eq 1 ] && echo " (Belum ada file konfigurasi umum yang terdeteksi.)"
     echo -e "\nAksi lain:"
-    echo " 99) Buka folder server"
+    echo " 99) Buka folder server (mc/file manager)"
     echo "  0) Kembali"
     read -rp "Pilih nomor file untuk diedit: " pick
     if [ "$pick" = "0" ]; then
       return
     elif [ "$pick" = "99" ]; then
-      mc "$server_path"
+      # Pastikan mc terinstall
+      if need_cmd mc; then
+          mc "$server_path"
+      else
+          echo -e "${RED}'mc' (Midnight Commander) belum terinstall. Install dengan: sudo apt install mc${NC}"
+          pause
+      fi
     elif [[ "$pick" =~ ^[0-9]+$ ]] && [ -n "${files[$pick]:-}" ]; then
       "$EDITOR_BIN" "$server_path/${files[$pick]}"
     else
@@ -178,11 +206,15 @@ ensureRestartScript(){
 set -euo pipefail
 cd "$(dirname "$0")"
 NAME="$(basename "$PWD")"
+# Cek session tmux
 if tmux has-session -t "$NAME" 2>/dev/null; then
   tmux send-keys -t "$NAME" "stop" C-m
+  # Tunggu max 60 detik untuk shutdown
   for i in {1..60}; do tmux has-session -t "$NAME" 2>/dev/null || break; sleep 1; done
+  # Jika masih bandel, kill
   tmux kill-session -t "$NAME" 2>/dev/null || true
 fi
+# Start ulang
 tmux new-session -d -s "$NAME" "cd '$(pwd)' && ./start.sh"
 SH
     chmod +x "$script"
@@ -196,9 +228,15 @@ cronAddDailyRestart(){
   local script; script="$(ensureRestartScript "$server_name")"
   local tag="# mc-restart:${server_name}"
   local tmp; tmp="$(mktemp)"
+  
+  # Hapus entry lama jika ada
   crontab -l 2>/dev/null | sed "/${tag}/d" > "$tmp"
+  
+  # Tambahkan entry baru
   echo "$m $h * * * /bin/bash '$script' >> '$server_path/logs/auto-restart.log' 2>&1 ${tag}" >> "$tmp"
-  crontab "$tmp"; rm -f "$tmp"
+  
+  crontab "$tmp"
+  rm -f "$tmp"
 }
 
 cronRemoveRestart(){
@@ -238,7 +276,7 @@ ramAllocationMenu(){
   
   if [ ! -f "$memory_conf_path" ]; then
     echo -e "${RED}File memory.conf tidak ditemukan!${NC}"
-    echo "File ini seharusnya dibuat saat server dibuat. Mungkin ini server lama."
+    echo "File ini seharusnya dibuat saat server dibuat."
     echo "Anda bisa membuatnya manual: echo '2G' > $memory_conf_path"
     pause
     return
@@ -269,10 +307,9 @@ ramAllocationMenu(){
 pluginWebMenu(){
   local server_name="$1"
   local PLUG_SH="$FUNCTIONS_DIR/plugin_web.sh"
-  local PLUG_PY="$FUNCTIONS_DIR/plugin_web.py"
   normalize_scripts
   if [ ! -x "$PLUG_SH" ]; then
-    echo -e "${RED}plugin_web.sh tidak ditemukan di $PLUG_SH${NC}"; pause; return
+    echo -e "${RED}plugin_web.sh tidak ditemukan atau tidak executable di $PLUG_SH${NC}"; pause; return
   fi
   while true; do
     clear
@@ -294,31 +331,100 @@ pluginWebMenu(){
   done
 }
 
+downloadPluginFromLink(){
+    local server_name="$1"
+    local server_path="$SERVERS_DIR/$server_name"
+    local plugins_dir="$server_path/plugins"
+    
+    mkdir -p "$plugins_dir"
+    clear
+    echo -e "${BLUE}--- Download Plugin via Link: ${YELLOW}$server_name${BLUE} ---${NC}"
+    read -rp "Masukkan URL Direct Link Plugin (.jar): " url
+    
+    if [ -z "$url" ]; then echo "Dibatalkan."; sleep 1; return; fi
+    
+    echo "Sedang mengunduh..."
+    # Pindah ke direktori plugins sementara untuk wget
+    local cwd
+    cwd=$(pwd)
+    cd "$plugins_dir" || return
+    
+    if wget --content-disposition "$url"; then
+        echo -e "${GREEN}Berhasil diunduh ke folder plugins.${NC}"
+    else
+        echo -e "${RED}Gagal mengunduh.${NC}"
+    fi
+    
+    cd "$cwd" || return
+    pause
+}
+
+# --- Fungsi Lanjutan (GraalVM, dll) ---
+
+run_with_spinner() {
+    local desc="$1"
+    shift
+    local cmd=("$@")
+    local spin_chars='-\|/'
+    local i=0
+    local pid=""
+    local exit_code=0
+
+    cleanup() {
+        printf "\r%s\n" "$(tput el)"
+        tput cnorm
+    }
+    trap cleanup EXIT
+
+    tput civis
+    printf "%s... " "$desc"
+
+    "${cmd[@]}" > /dev/null 2>&1 &
+    pid=$!
+
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$(( (i+1) % 4 ))
+        printf "\r%s... %c" "$desc" "${spin_chars:$i:1}"
+        sleep 0.1
+    done
+
+    wait "$pid"
+    exit_code=$?
+
+    printf "\r%s... " "$desc"
+    if [ "$exit_code" -eq 0 ]; then
+        printf "\033[32mSELESAI\033[0m\n"
+    else
+        printf "\033[31mGAGAL (Kode Keluar: %d)\033[0m\n" "$exit_code"
+    fi
+
+    tput cnorm
+    trap - EXIT
+    return "$exit_code"
+}
+
 changeJvmTemplate(){
   local server_name="$1"
   local server_path="$SERVERS_DIR/$server_name"
   local start_script_path="$server_path/start.sh"
   local graalvm_path="$BASE_DIR/graalvm-community-openjdk-21.0.1+12.1"
-  local graalvm_native_executable="$server_name-native" # Assuming this naming convention
+  local graalvm_native_executable="$server_name-native"
   local current_java_home=""
   local graalvm_status=""
   local graalvm_native_status=""
-  local temurin_hilltty_status="" # New status variable
+  local temurin_hilltty_status=""
 
   if [ -f "$start_script_path" ]; then
-    # Check if JAVA_HOME is set and if it's GraalVM
     current_java_home=$(grep -oP '^export JAVA_HOME="\K[^"]+' "$start_script_path" | head -n1)
     if [[ "$current_java_home" == "$graalvm_path" ]]; then
-      # Check if it's running java -jar or the native executable
       if grep -q "java -Xms" "$start_script_path"; then
-        graalvm_status=" ${GREEN}🟢${NC}" # GraalVM JDK is active
-      elif grep -q "./$graalvm_native_executable" "$start_script_path"; then # Check for native executable
-        graalvm_native_status=" ${GREEN}🟢${NC}" # GraalVM Native is active
+        graalvm_status=" ${GREEN}🟢${NC}"
+      elif grep -q "./$graalvm_native_executable" "$start_script_path"; then
+        graalvm_native_status=" ${GREEN}🟢${NC}"
       fi
-    # If JAVA_HOME is not GraalVM, check if it's a native executable without explicit JAVA_HOME
     elif grep -q "^./$graalvm_native_executable" "$start_script_path" && ! grep -q "java -Xms" "$start_script_path"; then
-        graalvm_native_status=" ${GREEN}🟢${NC}" # GraalVM Native is active (without explicit JAVA_HOME export)
-    else # If JAVA_HOME is not GraalVM, check for Hilltty flags
+        graalvm_native_status=" ${GREEN}🟢${NC}"
+    else
       if grep -q "-XX:-OmitStackTraceInFastThrow" "$start_script_path" && grep -q "-Dfml.queryResult=confirm" "$start_script_path"; then
         temurin_hilltty_status=" ${GREEN}🟢${NC}"
       fi
@@ -332,13 +438,13 @@ changeJvmTemplate(){
     echo ""
     echo -e " 1) GraalVM Community Edition (G1GC)$graalvm_status"
     echo -e " 2) GraalVM Native Image (Experimental - Untuk Expert)$graalvm_native_status"
-    echo -e " 3) Adoptium (Eclipse Temurin) + Hilltty Flags$temurin_hilltty_status" # New menu item
+    echo -e " 3) Adoptium (Eclipse Temurin) + Hilltty Flags$temurin_hilltty_status"
     echo " 0) Kembali"
     read -rp "Pilih: " choice
     case "$choice" in
       1) installAndApplyGraalVM "$server_name";;
       2) installAndApplyGraalVMNative "$server_name";;
-      3) applyTemurinHillttyFlags "$server_name";; # New case
+      3) applyTemurinHillttyFlags "$server_name";;
       0) return ;;
       *) echo -e "${RED}Pilihan tidak valid.${NC}"; sleep 1 ;;
     esac
@@ -359,41 +465,36 @@ installAndApplyGraalVMNative(){
   echo -e "${YELLOW}   Proses build Native Image akan memakan waktu cukup lama (~10-30 menit).${NC}"
   pause
 
-  # 1. Ensure GraalVM JDK is installed
   if [ ! -d "$graalvm_path" ]; then
     echo -e "${RED}GraalVM JDK tidak ditemukan. Harap instal GraalVM Community Edition terlebih dahulu.${NC}"
     pause
     return
   fi
 
-  # 2. Set JAVA_HOME for the build process
-  local OLD_JAVA_HOME="${JAVA_HOME:-}" # Use default empty string if unbound
+  local OLD_JAVA_HOME="${JAVA_HOME:-}"
   local OLD_PATH="$PATH"
   export JAVA_HOME="$graalvm_path"
   export PATH="$JAVA_HOME/bin:$PATH"
 
-  # 3. Install native-image component
   if ! run_with_spinner "Menginstal komponen Native Image" gu install native-image; then
     echo -e "${RED}Gagal menginstal komponen Native Image.${NC}"
-    export JAVA_HOME="$OLD_JAVA_HOME" # Restore
-    export PATH="$OLD_PATH" # Restore
+    export JAVA_HOME="$OLD_JAVA_HOME"
+    export PATH="$OLD_PATH"
     pause
     return
   fi
 
-  # 4. Get current JAR name
   local current_jar
   current_jar=$(grep -oP -- '-jar \K\S+\.jar' "$start_script_path" | head -n1)
   if [[ -z "$current_jar" ]]; then
     echo -e "${RED}Tidak dapat menemukan nama JAR server di start.sh.${NC}"
-    export JAVA_HOME="$OLD_JAVA_HOME" # Restore
-    export PATH="$OLD_PATH" # Restore
+    export JAVA_HOME="$OLD_JAVA_HOME"
+    export PATH="$OLD_PATH"
     pause
     return
   fi
 
-  # 5. Build Native Image
-  echo "" # Newline for cleaner output
+  echo ""
   if ! run_with_spinner "Membangun Native Image ($current_jar -> $native_executable_name)" \
      native-image \
      --no-fallback \
@@ -402,13 +503,12 @@ installAndApplyGraalVMNative(){
      -jar "$server_path/$current_jar" \
      "$native_executable_path"; then
     echo -e "${RED}Gagal membangun Native Image.${NC}"
-    export JAVA_HOME="$OLD_JAVA_HOME" # Restore
-    export PATH="$OLD_PATH" # Restore
+    export JAVA_HOME="$OLD_JAVA_HOME"
+    export PATH="$OLD_PATH"
     pause
     return
   fi
 
-  # 6. Update start.sh to run native executable
   local new_content
   read -r -d '' new_content << EOM
 #!/usr/bin/env bash
@@ -429,8 +529,8 @@ EOM
 
   echo -e "${GREEN}Native Image berhasil dibangun dan diterapkan ke start.sh.${NC}"
   
-  export JAVA_HOME="$OLD_JAVA_HOME" # Restore
-  export PATH="$OLD_PATH" # Restore
+  export JAVA_HOME="$OLD_JAVA_HOME"
+  export PATH="$OLD_PATH"
   pause
 }
 
@@ -447,16 +547,13 @@ applyTemurinHillttyFlags(){
 
   if [ ! -f "$memory_conf_path" ]; then
     echo -e "${RED}File memory.conf tidak ditemukan!${NC}"
-    echo "File ini seharusnya dibuat saat server dibuat. Mungkin ini server lama."
+    echo "File ini seharusnya dibuat saat server dibuat."
     echo "Anda bisa membuatnya manual: echo '2G' > $memory_conf_path"
     pause
     return
   fi
 
-  # Read RAM allocation from the dedicated config file
   local RAM_ALLOC=$(cat "$memory_conf_path")
-
-  # Get the current jar file from the existing start script
   local jar_value
   jar_value=$(grep -oP -- '-jar \K\S+\.jar' "$start_script_path" | head -n1)
   if [[ -z "$jar_value" ]]; then
@@ -464,7 +561,7 @@ applyTemurinHillttyFlags(){
   fi
   local current_jar="$jar_value"
 
-  if run_with_spinner "Menerapkan Hilltty Flags" true; then # Use 'true' as a dummy command for spinner
+  if run_with_spinner "Menerapkan Hilltty Flags" true; then
     local new_content
     read -r -d '' new_content << EOM
 #!/usr/bin/env bash
@@ -513,53 +610,6 @@ EOM
   
   pause
 }
-
-# Fungsi untuk menampilkan spinner saat sebuah perintah sedang dieksekusi
-# Penggunaan: run_with_spinner "Deskripsi tugas" perintah_anda arg1 arg2 ...
-run_with_spinner() {
-    local desc="$1"
-    shift
-    local cmd=("$@")
-    local spin_chars='-\|/'
-    local i=0
-    local pid=""
-    local exit_code=0
-
-    cleanup() {
-        printf "\r%s\n" "$(tput el)"
-        tput cnorm
-    }
-    trap cleanup EXIT
-
-    tput civis
-    printf "%s... " "$desc"
-
-    # Jalankan perintah di latar belakang, alihkan outputnya
-    "${cmd[@]}" > /dev/null 2>&1 &
-    pid=$!
-
-    while kill -0 "$pid" 2>/dev/null; do
-        i=$(( (i+1) % 4 ))
-        printf "\r%s... %c" "$desc" "${spin_chars:$i:1}"
-        sleep 0.1
-    done
-
-    wait "$pid"
-    exit_code=$?
-
-    printf "\r%s... " "$desc"
-    if [ "$exit_code" -eq 0 ]; then
-        printf "\033[32mSELESAI\033[0m\n"
-    else
-        printf "\033[31mGAGAL (Kode Keluar: %d)\033[0m\n" "$exit_code"
-    fi
-
-    tput cnorm
-    trap - EXIT
-    return "$exit_code"
-}
-
-
 
 installAndApplyGraalVM(){
   local server_name="$1"
@@ -612,11 +662,9 @@ applyGraalVMFlags(){
   local memory_conf_path="$server_path/memory.conf"
 
   if [ ! -f "$memory_conf_path" ]; then
-    # Fallback for older servers without memory.conf
     echo "2G" > "$memory_conf_path"
   fi
 
-  # Get the current jar file from the existing start script
   local jar_value
   jar_value=$(grep -oP -- '-jar \K\S+\.jar' "$start_script_path" | head -n1)
   if [[ -z "$jar_value" ]]; then
@@ -777,7 +825,7 @@ serverActionMenu(){
     echo -e "\n${BLUE}--- MANAJEMEN & KONFIGURASI ---${NC}"
     echo " 5. Kelola Pemain"
     echo " 6. Editor Konfigurasi"
-    echo " 7. File Manager"
+    echo " 7. File Manager (mc)"
     echo " 8. System Configuration"
     echo " 9. Manajemen Whitelist"
     echo "10. Set Auto Restart"
@@ -790,6 +838,7 @@ serverActionMenu(){
       1)
         if ! tmux has-session -t "$server_name" 2>/dev/null; then
           loadingAnimation "Starting server" & local pid=$!
+          # Start tmux relatif terhadap folder server
           tmux new-session -d -s "$server_name" "cd '$server_path' && ./start.sh"
           sleep 2; kill $pid &>/dev/null; tput cnorm
           echo -e "\r${GREEN}Server run.${NC}"; sleep 1
@@ -800,7 +849,7 @@ serverActionMenu(){
         if ! tmux has-session -t "$server_name" 2>/dev/null; then
           echo -e "${RED}Server tidak berjalan.${NC}"; sleep 1
         else
-          loadingAnimation "Mengirim perintah stop (graceful shutdown)" & local pid=$!
+          loadingAnimation "Mengirim perintah stop..." & local pid=$!
           tmux send-keys -t "$server_name" "stop" C-m
           for i in {1..30}; do
             ! tmux has-session -t "$server_name" 2>/dev/null && break
@@ -808,48 +857,22 @@ serverActionMenu(){
           done
           kill $pid &>/dev/null; tput cnorm
           if tmux has-session -t "$server_name" 2>/dev/null; then
-            echo -e "\r${YELLOW}Graceful shutdown gagal (timeout). Memaksa penghentian...${NC}"
-            loadingAnimation "Menghentikan paksa (kill session)" & pid=$!
-            tmux kill-session -t "$server_name" &>/dev/null
-            sleep 1
-            kill $pid &>/dev/null; tput cnorm
-            echo -e "\r${GREEN}Server dihentikan paksa.${NC}"; sleep 1
+             echo -e "\r${YELLOW}Timeout. Memaksa kill...${NC}"
+             tmux kill-session -t "$server_name" &>/dev/null
           else
-            echo -e "\r${GREEN}Server dihentikan dengan sukses.${NC}"; sleep 1
+             echo -e "\r${GREEN}Server berhenti.${NC}"; sleep 1
           fi
         fi
         ;;
       3)
-        echo "Memulai proses restart..."
-        # --- Bagian Stop yang Ditingkatkan ---
+        # Logika Restart
         if tmux has-session -t "$server_name" 2>/dev/null; then
-          loadingAnimation "Mengirim perintah stop (graceful shutdown)" & local pid=$!
-          tmux send-keys -t "$server_name" "stop" C-m
-          for i in {1..30}; do ! tmux has-session -t "$server_name" 2>/dev/null && break; sleep 1; done
-          kill $pid &>/dev/null; tput cnorm
-          if tmux has-session -t "$server_name" 2>/dev/null; then
-            echo -e "\r${YELLOW}Graceful shutdown gagal (timeout). Memaksa penghentian...${NC}"
-            loadingAnimation "Menghentikan paksa (kill session)" & pid=$!
-            tmux kill-session -t "$server_name" &>/dev/null; sleep 1
-            kill $pid &>/dev/null; tput cnorm
-            echo -e "\r${GREEN}Server dihentikan paksa.${NC}"
-          else
-            echo -e "\r${GREEN}Server dihentikan dengan sukses.${NC}"
-          fi
-        else
-          echo -e "${YELLOW}Server sudah berhenti, lanjut memulai...${NC}"
+           tmux send-keys -t "$server_name" "stop" C-m
+           sleep 5
+           if tmux has-session -t "$server_name" 2>/dev/null; then tmux kill-session -t "$server_name"; fi
         fi
-        
-        # --- Bagian Start ---
-        echo "Memulai server..."
-        if ! tmux has-session -t "$server_name" 2>/dev/null; then
-          loadingAnimation "Memulai server" & local pid=$!
-          tmux new-session -d -s "$server_name" "cd '$server_path' && ./start.sh"
-          sleep 2; kill $pid &>/dev/null; tput cnorm
-          echo -e "\r${GREEN}Server di-restart/dimulai.${NC}"; sleep 1
-        else
-          echo -e "${YELLOW}Gagal memulai, server sepertinya sudah berjalan.${NC}"; sleep 1
-        fi
+        tmux new-session -d -s "$server_name" "cd '$server_path' && ./start.sh"
+        echo -e "${GREEN}Server direstart.${NC}"; sleep 1
         ;;
       4)
         if tmux has-session -t "$server_name" 2>/dev/null; then
@@ -860,19 +883,20 @@ serverActionMenu(){
         fi ;;
       5) playersMenu "$server_name" ;;
       6) configEditorMenu "$server_name" ;;
-      7) mc "$server_path" ;;
-      8) systemConfigurationMenu "$server_name" ;;
-      9) whitelistMenu "$server_name" ;;
+      7) 
+         if need_cmd mc; then mc "$server_path"; else echo -e "${RED}Install 'mc' dulu.${NC}"; pause; fi ;;
+      8) systemConfigurationMenu "$server_name" ;; 
+      9) whitelistMenu "$server_name" ;; 
       10) autoRestartMenu "$server_name" ;;
       11) pluginWebMenu "$server_name" ;;
       12) 
-  if declare -F systemdMenu >/dev/null; then
-    systemdMenu "$server_name"
-  else
-    echo "Module systemd_manager.sh belum dimuat."
-    read -rp "Tekan [Enter]..."
-  fi
-  ;;
+          if declare -F systemdMenu >/dev/null; then
+            systemdMenu "$server_name"
+          else
+            echo "Module systemd_manager.sh belum dimuat."
+            pause
+          fi
+          ;;
       13) downloadPluginFromLink "$server_name" ;;
       0) return ;;
       *) echo -e "${RED}Pilihan tidak valid.${NC}"; sleep 1 ;;
@@ -883,6 +907,7 @@ serverActionMenu(){
 manageServers(){
   normalize_scripts
   clear
+  # Cari folder di SERVERS_DIR
   mapfile -t servers < <(find "$SERVERS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
   if [ ${#servers[@]} -eq 0 ]; then
     echo -e "${YELLOW}Belum ada server yang dibuat.${NC}"
@@ -908,7 +933,3 @@ manageServers(){
     echo -e "${RED}Pilihan tidak valid.${NC}"; sleep 1
   fi
 }
-
-# if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-#   manageServers
-# fi
